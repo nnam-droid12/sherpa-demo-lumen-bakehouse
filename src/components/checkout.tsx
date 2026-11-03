@@ -13,15 +13,21 @@ type Shipping = {
   notes?: string;
 };
 
-function formatNotes(notes: string) {
-  return notes.trim() || "None";
+function formatNotes(notes?: string | null) {
+  return (notes ?? "").trim() || "None";
 }
 
 export function Checkout({ clientId }: { clientId: string }) {
   const items = useCart();
   const [step, setStep] = useState<"shipping" | "review">("shipping");
-  const [shipping, setShipping] = useState<Shipping>({ name: "", street: "", city: "", zip: "", deliveryDate: "" });
-  const [showPayment, setShowPayment] = useState(false);
+  const [shipping, setShipping] = useState<Shipping>({
+    name: "",
+    street: "",
+    city: "",
+    zip: "",
+    deliveryDate: "",
+    notes: "",
+  });
 
   const set = (key: keyof Shipping) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setShipping({ ...shipping, [key]: e.target.value });
@@ -92,17 +98,11 @@ export function Checkout({ clientId }: { clientId: string }) {
           <p>
             Deliver to {shipping.name}, {shipping.street}, {shipping.city} {shipping.zip} on {shipping.deliveryDate}
           </p>
-          <p>Notes: {formatNotes(shipping.notes as string)}</p>
-          <p>
+          <p>Notes: {formatNotes(shipping.notes)}</p>
+          <p style={{ fontSize: "1.15rem", marginBottom: 12 }}>
             <strong>Total: ${cartTotal(items)}</strong>
           </p>
-          {!showPayment ? (
-            <button className="button" onClick={() => setShowPayment(true)}>
-              Choose payment method
-            </button>
-          ) : (
-            <PayPalButton clientId={clientId} items={items} />
-          )}
+          <PayPalButton clientId={clientId} items={items} />
         </section>
       )}
     </main>

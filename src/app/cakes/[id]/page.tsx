@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCart } from "@/components/add-to-cart";
+import { PayPalMessage } from "@/components/paypal-message";
 import { Stars } from "@/components/stars";
 import { findProduct, products } from "@/lib/products";
 
@@ -13,6 +14,8 @@ export default async function CakePage({ params }: { params: Promise<{ id: strin
   const product = findProduct(id);
   if (!product) notFound();
   const others = products.filter((p) => p.id !== product.id).slice(0, 3);
+  const clientId = process.env.PAYPAL_CLIENT_ID || "sb";
+
   return (
     <main className="container">
       <nav className="breadcrumb" aria-label="Breadcrumb">
@@ -28,6 +31,7 @@ export default async function CakePage({ params }: { params: Promise<{ id: strin
           <h1>{product.title}</h1>
           <Stars rating={product.rating} reviews={product.reviews} />
           <span className="price">${product.price}</span>
+          <PayPalMessage clientId={clientId} amount={product.price} pageType="product-details" />
           <p>{product.description}</p>
           <div className="facts">
             <div>
