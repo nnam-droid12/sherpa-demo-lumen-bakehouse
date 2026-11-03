@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --import ./test/register.mjs --no-warnings --test test/cart-contract.test.mjs"
   },
   "dependencies": {
     "next": "15.5.28",

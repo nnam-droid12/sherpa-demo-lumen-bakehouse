@@ -156,3 +156,71 @@ export async function verifyWebhookSignature({
   const data = await res.json();
   return { status: res.status, valid: data.verification_status === "SUCCESS" };
 }
+
+export async function createPayPalOrderForCart({
+  total,
+  origin,
+  cartId,
+}: {
+  total: string;
+  origin: string;
+  cartId: string;
+}) {
+  const token = await accessToken();
+  const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "PayPal-Request-Id": crypto.randomUUID(),
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: { currency_code: "USD", value: total },
+          custom_id: total,
+          description: `Lumen Bakehouse Cart ${cartId}`,
+        },
+      ],
+      payment_source: {
+        paypal: {
+          experience_context: {
+            return_url: `${origin}/thank-you`,
+            cancel_url: `${origin}/cart`,
+            user_action: "PAY_NOW",
+          },
+        },
+      },
+    }),
+    cache: "no-store",
+  });
+  return { status: res.status, body: await res.json() };
+}
+
+export async function getPayPalOrder(orderId: string) {
+  const token = await accessToken();
+  const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${encodeURIComponent(orderId)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+  return { status: res.status, body: await res.json() };
+}
+
+export async function capturePayPalOrder(orderId: string) {
+  const token = await accessToken();
+  const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "PayPal-Request-Id": crypto.randomUUID(),
+    },
+    cache: "no-store",
+  });
+  return { status: res.status, body: await res.json() };
+}
+
