@@ -17,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap"
         />
+        <script async src="https://www.sandbox.paypal.com/web-sdk/v6/core"></script>
       </head>
       <body>
         <div className="announce">Order by 2pm for delivery the day after tomorrow · Free delivery over $60</div>

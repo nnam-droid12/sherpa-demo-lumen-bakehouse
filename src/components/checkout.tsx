@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cartTotal, useCart } from "@/lib/cart";
 import { PayPalButton } from "./paypal-button";
+import { PayPalMessage } from "./paypal-message";
 
 type Shipping = {
   name: string;
@@ -13,18 +14,24 @@ type Shipping = {
   notes?: string;
 };
 
-function formatNotes(notes: string) {
-  return notes.trim() || "None";
+function formatNotes(notes?: string) {
+  return (notes || "").trim() || "None";
 }
 
 export function Checkout({ clientId }: { clientId: string }) {
   const items = useCart();
   const [step, setStep] = useState<"shipping" | "review">("shipping");
-  const [shipping, setShipping] = useState<Shipping>({ name: "", street: "", city: "", zip: "", deliveryDate: "" });
-  const [showPayment, setShowPayment] = useState(false);
+  const [shipping, setShipping] = useState<Shipping>({
+    name: "",
+    street: "",
+    city: "",
+    zip: "",
+    deliveryDate: "",
+    notes: "",
+  });
 
   const set = (key: keyof Shipping) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setShipping({ ...shipping, [key]: e.target.value });
+    setShipping((prev) => ({ ...prev, [key]: e.target.value }));
 
   if (items.length === 0) {
     return (
@@ -34,6 +41,8 @@ export function Checkout({ clientId }: { clientId: string }) {
       </main>
     );
   }
+
+  const total = cartTotal(items);
 
   return (
     <main className="container">
@@ -73,7 +82,7 @@ export function Checkout({ clientId }: { clientId: string }) {
           </label>
           <label>
             Delivery notes (optional)
-            <textarea rows={2} value={shipping.notes} onChange={set("notes")} />
+            <textarea rows={2} value={shipping.notes || ""} onChange={set("notes")} />
           </label>
           <button className="button" type="submit">
             Continue to review
@@ -90,19 +99,20 @@ export function Checkout({ clientId }: { clientId: string }) {
             </p>
           ))}
           <p>
-            Deliver to {shipping.name}, {shipping.street}, {shipping.city} {shipping.zip} on {shipping.deliveryDate}
+            Deliver to {shipping.name || "Customer"}, {shipping.street || ""}, {shipping.city || ""}{" "}
+            {shipping.zip || ""} on {shipping.deliveryDate || ""}
           </p>
-          <p>Notes: {formatNotes(shipping.notes as string)}</p>
-          <p>
-            <strong>Total: ${cartTotal(items)}</strong>
-          </p>
-          {!showPayment ? (
-            <button className="button" onClick={() => setShowPayment(true)}>
-              Choose payment method
-            </button>
-          ) : (
-            <PayPalButton clientId={clientId} items={items} />
-          )}
+          <p>Notes: {formatNotes(shipping.notes)}</p>
+
+          <div className="checkout-payment-section" style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+            <p style={{ fontSize: "1.2rem", margin: "0 0 8px" }}>
+              <strong>Total: ${total}</strong>
+            </p>
+            <PayPalMessage amount={total} clientId={clientId} />
+            <div style={{ marginTop: 16 }}>
+              <PayPalButton clientId={clientId} items={items} />
+            </div>
+          </div>
         </section>
       )}
     </main>
