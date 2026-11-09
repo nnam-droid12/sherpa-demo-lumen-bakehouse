@@ -46,6 +46,53 @@ export async function createOrder(lines: CartLine[]) {
   return { status: res.status, body: await res.json() };
 }
 
+export async function createMerchantCartOrder(total: string, origin: string) {
+  const token = await accessToken();
+  const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "PayPal-Request-Id": crypto.randomUUID(),
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: "USD",
+            value: total,
+          },
+        },
+      ],
+      payment_source: {
+        paypal: {
+          experience_context: {
+            return_url: `${origin}/thank-you`,
+            cancel_url: `${origin}/cart`,
+            user_action: "PAY_NOW",
+          },
+        },
+      },
+    }),
+    cache: "no-store",
+  });
+  return { status: res.status, body: await res.json() };
+}
+
+export async function getOrder(orderId: string) {
+  const token = await accessToken();
+  const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${encodeURIComponent(orderId)}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+  return { status: res.status, body: await res.json() };
+}
+
 export async function captureOrder(orderId: string, expectedAmount?: string) {
   const token = await accessToken();
   const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
