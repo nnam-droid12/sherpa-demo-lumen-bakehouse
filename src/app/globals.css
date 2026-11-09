@@ -148,28 +148,3 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; let
   .container { padding: 28px 16px; }
   .facts { grid-template-columns: 1fr 1fr; }
 }
-
-/* paypal & venmo web components */
-paypal-button,
-venmo-button {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-height: 45px;
-}
-
-paypal-message {
-  display: block;
-  width: 100%;
-}
-
-.paypal-checkout-container {
-  width: 100%;
-  max-width: 350px;
-}
-
-@media (max-width: 480px) {
-  .box { padding: 18px 16px; }
-  .cart-line { flex-wrap: wrap; }
-}
-
