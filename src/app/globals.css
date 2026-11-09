@@ -71,7 +71,7 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; let
 .button.ghost { background: transparent; color: var(--berry); border: 2px solid var(--berry); }
 
 /* product grid */
-.section-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 22px; }
+.section-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 22px; }
 .section-head h2 { margin: 6px 0 0; font-size: 2rem; }
 .cakes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 28px; }
 .cake { text-decoration: none; display: grid; gap: 10px; }
@@ -146,5 +146,20 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; let
 }
 @media (max-width: 600px) {
   .container { padding: 28px 16px; }
+  .box { padding: 18px 16px; }
   .facts { grid-template-columns: 1fr 1fr; }
 }
+
+paypal-button,
+venmo-button {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+}
+
+.paypal-buttons-wrapper {
+  width: 100%;
+  max-width: 350px;
+}
+

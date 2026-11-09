@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCart } from "@/components/add-to-cart";
 import { Stars } from "@/components/stars";
+import { PayPalMessage } from "@/components/paypal-message";
 import { findProduct, products } from "@/lib/products";
 
 export function generateStaticParams() {
@@ -28,6 +29,7 @@ export default async function CakePage({ params }: { params: Promise<{ id: strin
           <h1>{product.title}</h1>
           <Stars rating={product.rating} reviews={product.reviews} />
           <span className="price">${product.price}</span>
+          <PayPalMessage amount={product.price} clientId={process.env.PAYPAL_CLIENT_ID || "sb"} />
           <p>{product.description}</p>
           <div className="facts">
             <div>
