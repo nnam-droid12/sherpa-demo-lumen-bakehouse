@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { cartError, getOrigin, processCart } from "@/lib/merchant-cart";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   let body: any;
   try {

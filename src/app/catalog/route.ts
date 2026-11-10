@@ -1,1 +1,1 @@
-export { GET } from "../catalog.json/route";
+export { GET, dynamic } from "../catalog.json/route";

@@ -97,5 +97,6 @@ export const products: Product[] = [
 ];
 
 export function findProduct(id: string) {
-  return products.find((p) => p.id === id);
+  const cleanId = (id || "").trim().toLowerCase();
+  return products.find((p) => p.id === cleanId || p.id.toLowerCase() === cleanId);
 }

@@ -4,9 +4,19 @@ const PAYPAL_BASE = "https://api-m.sandbox.paypal.com";
 
 export type CartLine = { id: string; qty: number };
 
-export const processedEvents = new Set<string>();
+const globalForPayPal = globalThis as unknown as { processedEvents: Set<string> };
+if (!globalForPayPal.processedEvents) {
+  globalForPayPal.processedEvents = new Set<string>();
+}
+export const processedEvents: Set<string> = globalForPayPal.processedEvents;
+
+let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function accessToken() {
+  const now = Date.now();
+  if (cachedToken && cachedToken.expiresAt > now + 60000) {
+    return cachedToken.token;
+  }
   const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString("base64");
   const res = await fetch(`${PAYPAL_BASE}/v1/oauth2/token`, {
     method: "POST",
@@ -15,7 +25,11 @@ async function accessToken() {
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`PayPal auth failed: ${res.status}`);
-  return (await res.json()).access_token as string;
+  const data = await res.json();
+  const token = data.access_token as string;
+  const expiresIn = Number(data.expires_in) || 3600;
+  cachedToken = { token, expiresAt: now + expiresIn * 1000 };
+  return token;
 }
 
 export function priceCart(lines: CartLine[]) {

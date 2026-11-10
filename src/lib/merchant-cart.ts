@@ -51,18 +51,21 @@ export type Cart = {
 };
 
 const globalForCarts = globalThis as unknown as { merchantCarts: Map<string, Cart> };
-export const carts: Map<string, Cart> = globalForCarts.merchantCarts || new Map<string, Cart>();
-if (process.env.NODE_ENV !== "production") {
-  globalForCarts.merchantCarts = carts;
+if (!globalForCarts.merchantCarts) {
+  globalForCarts.merchantCarts = new Map<string, Cart>();
 }
+export const carts: Map<string, Cart> = globalForCarts.merchantCarts;
 
 export function getOrigin(req: Request): string {
-  const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").split(",")[0].trim();
-  const proto = (req.headers.get("x-forwarded-proto") || "https").split(",")[0].trim();
+  const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0].trim();
+  const host = forwardedHost || req.headers.get("host")?.split(",")[0].trim();
+  const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0].trim();
+  const urlObj = new URL(req.url);
+  const proto = forwardedProto || urlObj.protocol.replace(":", "") || "http";
   if (host) {
     return `${proto}://${host}`;
   }
-  return new URL(req.url).origin;
+  return urlObj.origin;
 }
 
 export function cartError(name: string, message: string, status: number, debug_id?: string) {
@@ -78,9 +81,17 @@ export function cartError(name: string, message: string, status: number, debug_i
 
 function parseDateOnly(str: string): number | null {
   if (!str) return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(str.trim());
+  const match = /^(\d{4})[-/](\d{2})[-/](\d{2})/.exec(str.trim());
   if (match) {
-    return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const y = Number(match[1]);
+    const m = Number(match[2]) - 1;
+    const d = Number(match[3]);
+    const timestamp = Date.UTC(y, m, d);
+    const dateObj = new Date(timestamp);
+    if (dateObj.getUTCFullYear() === y && dateObj.getUTCMonth() === m && dateObj.getUTCDate() === d) {
+      return timestamp;
+    }
+    return null;
   }
   const timestamp = Date.parse(str);
   if (!isNaN(timestamp)) {
@@ -116,7 +127,7 @@ export async function processCart(
 
   for (let i = 0; i < rawItems.length; i++) {
     const raw = rawItems[i];
-    const itemId = String(raw?.item_id || "");
+    const itemId = String(raw?.item_id || raw?.id || "").trim();
     const qty = Math.max(1, Math.floor(Number(raw?.quantity) || 1));
     const product = findProduct(itemId);
 
@@ -157,7 +168,7 @@ export async function processCart(
   }
 
   const shipping = body?.shipping_address;
-  if (!shipping || typeof shipping !== "object" || !shipping.address_line_1) {
+  if (!shipping || typeof shipping !== "object" || !shipping.address_line_1 || !String(shipping.address_line_1).trim()) {
     validation_issues.push({
       code: "SHIPPING_ERROR",
       type: "MISSING_FIELD",
@@ -169,18 +180,33 @@ export async function processCart(
     });
   }
 
-  if (hasPreorderItems) {
-    const fields = Array.isArray(body?.checkout_fields) ? body.checkout_fields : [];
-    const deliveryField = fields.find(
-      (f: any) => f && (f.type === "DELIVERY_DATE_PREFERENCE" || f.name === "DELIVERY_DATE_PREFERENCE")
+  let deliveryValue: string | undefined;
+  if (Array.isArray(body?.checkout_fields)) {
+    const f = body.checkout_fields.find(
+      (item: any) =>
+        item &&
+        (item.type === "DELIVERY_DATE_PREFERENCE" ||
+          item.name === "DELIVERY_DATE_PREFERENCE" ||
+          item.field === "DELIVERY_DATE_PREFERENCE" ||
+          item.key === "DELIVERY_DATE_PREFERENCE")
     );
+    if (f && typeof f.value === "string") {
+      deliveryValue = f.value;
+    }
+  } else if (body?.checkout_fields && typeof body.checkout_fields === "object") {
+    if (typeof body.checkout_fields.DELIVERY_DATE_PREFERENCE === "string") {
+      deliveryValue = body.checkout_fields.DELIVERY_DATE_PREFERENCE;
+    }
+  }
+  if (!deliveryValue && typeof body?.delivery_date === "string") {
+    deliveryValue = body.delivery_date;
+  }
+  if (!deliveryValue && typeof body?.deliveryDate === "string") {
+    deliveryValue = body.deliveryDate;
+  }
 
-    if (
-      !deliveryField ||
-      !deliveryField.value ||
-      typeof deliveryField.value !== "string" ||
-      !deliveryField.value.trim()
-    ) {
+  if (hasPreorderItems) {
+    if (!deliveryValue || !deliveryValue.trim()) {
       validation_issues.push({
         code: "DATA_ERROR",
         type: "MISSING_FIELD",
@@ -191,10 +217,29 @@ export async function processCart(
         resolution_options: [{ action: "PROVIDE_MISSING_FIELD" }],
       });
     } else {
-      const targetUTC = parseDateOnly(deliveryField.value);
+      const targetUTC = parseDateOnly(deliveryValue);
       const now = new Date();
       const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-      const minAllowedUTC = todayUTC + maxLeadTime * 24 * 60 * 60 * 1000;
+
+      let effectiveTodayUTC = todayUTC;
+      try {
+        const sfFormatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        const parts = sfFormatter.formatToParts(now);
+        const sfYear = Number(parts.find((p) => p.type === "year")?.value);
+        const sfMonth = Number(parts.find((p) => p.type === "month")?.value) - 1;
+        const sfDay = Number(parts.find((p) => p.type === "day")?.value);
+        const todaySF = Date.UTC(sfYear, sfMonth, sfDay);
+        effectiveTodayUTC = Math.min(todayUTC, todaySF);
+      } catch {
+        // fallback to todayUTC
+      }
+
+      const minAllowedUTC = effectiveTodayUTC + maxLeadTime * 24 * 60 * 60 * 1000;
 
       if (targetUTC === null || targetUTC < minAllowedUTC) {
         validation_issues.push({
@@ -239,6 +284,12 @@ export async function processCart(
     }
   }
 
+  const checkout_fields = Array.isArray(body?.checkout_fields)
+    ? body.checkout_fields
+    : deliveryValue
+    ? [{ type: "DELIVERY_DATE_PREFERENCE", value: deliveryValue }]
+    : undefined;
+
   const cart: Cart = {
     id: cartId,
     status,
@@ -248,7 +299,7 @@ export async function processCart(
     totals,
     ...(body?.customer ? { customer: body.customer } : {}),
     ...(body?.shipping_address ? { shipping_address: body.shipping_address } : {}),
-    ...(body?.checkout_fields ? { checkout_fields: body.checkout_fields } : {}),
+    ...(checkout_fields ? { checkout_fields } : {}),
     payment_method,
   };
 

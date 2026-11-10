@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { products } from "@/lib/products";
 import { getOrigin } from "@/lib/merchant-cart";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   const origin = getOrigin(req);
 
@@ -18,6 +20,7 @@ export async function GET(req: Request) {
     url: `${origin}/cakes/${p.id}`,
     variants: [],
     serves: p.serves,
+    lead_time: p.leadTimeDays,
     lead_time_days: p.leadTimeDays,
     leadTimeDays: p.leadTimeDays,
     rating: p.rating,
